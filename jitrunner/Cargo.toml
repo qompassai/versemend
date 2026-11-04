@@ -1,0 +1,12 @@
+[package]
+name = "versemend-jitrunner"
+version = "0.1.0"
+edition = "2021"
+description = "Versemend spike — LuaJIT strand runner (route (a): two processes)."
+license = "Apache-2.0"
+
+[dependencies]
+mlua = { version = "0.12", features = ["luajit", "vendored"] }
+
+[profile.release]
+lto = "thin"

@@ -1,0 +1,9 @@
+host/target/
+jitrunner/target/
+host/android/.gradle/
+host/android/app/build/
+host/android/app/src/main/jniLibs/*/*.so
+evidence/
+solutions/
+*.log
+versemend-save.txt
