@@ -1,0 +1,25 @@
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+
+# Android linkers (NDK LLVM wrappers, API 26): lets a plain
+# `cargo build --target *-linux-android` link without cargo-apk.
+[target.aarch64-linux-android]
+linker = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+
+[target.x86_64-linux-android]
+linker = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang"
+
+# C toolchain for crates with C sources (cc-rs derives an
+# unversioned `*-linux-android-clang` name that this NDK does not
+# ship; point it at the versioned wrappers).
+[env]
+AR_aarch64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+AR_x86_64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+CC_aarch64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+CC_x86_64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang"
+CXX_aarch64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++"
+CXX_x86_64_linux_android = "/opt/android-sdk/ndk/28.0.12674087/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android26-clang++"
+
+# Re-host note (D-861): API 26 is the floor because Bevy's audio
+# backend (cpal/rodio) links -laaudio, and AAudio exists only from
+# API 26. Gradle minSdk matches (26).

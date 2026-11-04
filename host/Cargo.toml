@@ -1,0 +1,32 @@
+[package]
+name = "versemend"
+version = "1.0.0"
+edition = "2021"
+description = "Versemend production host: Bevy shell + mlua (vendored Lua 5.5.1) running the engine-independent Lua game."
+license = "Apache-2.0"
+
+[lib]
+name = "versemend"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "versemend"
+path = "src/main.rs"
+
+[dependencies]
+bevy = { version = "0.20", default-features = false, features = [
+    "2d",
+    "ui",
+    "android-game-activity",
+    "audio",
+    "wav",
+    "png",
+] }
+mlua = { version = "0.12", features = ["lua55", "vendored", "send"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity = "0.6"
+bevy_android = "0.20"
+
+[profile.release]
+lto = "thin"
