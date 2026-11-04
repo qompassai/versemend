@@ -9,7 +9,7 @@ shot() { adb -s $S exec-out screencap -p > "$E/$1"; echo "shot $1"; }
 clip() { DISPLAY=:0 xclip -selection clipboard -i "$SOL/$1.txt"; sleep 1; }
 
 echo "== launch fresh =="
-adb -s $S shell am start -n ai.qompass.versemend/com.google.androidgamesdk.GameActivity >/dev/null 2>&1
+adb -s $S shell am start -n ai.qompass.versemend/ai.qompass.versemend.VersemendActivity >/dev/null 2>&1
 sleep 14
 tap 1000 1004 3            # Motion: full (500,493)
 shot k-title.png

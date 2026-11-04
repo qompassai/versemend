@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   GameActivity variant manifest (the variant built in this proof).
-  The activity class is com.google.androidgamesdk.GameActivity, from the
-  androidx.games:games-activity AAR (see the dependencies block in
-  app/build.gradle.kts). It extends AppCompatActivity, hence the
-  Theme.AppCompat application theme. The android.app.lib_name meta-data
-  is identical for both backends. For the NativeActivity variant, use
-  AndroidManifest-nativeactivity.xml instead and drop the dependencies
-  block.
+  The activity class is ai.qompass.versemend.VersemendActivity, the
+  app-owned GameActivity subclass in app/src/main/java (it carries the
+  R1 EditorInfo flags: multi-line + no-suggestions for the code
+  editor). Its superclass com.google.androidgamesdk.GameActivity comes
+  from the androidx.games:games-activity AAR (see the dependencies
+  block in app/build.gradle.kts) and extends AppCompatActivity, hence
+  the Theme.AppCompat application theme. The android.app.lib_name
+  meta-data is identical for both backends. For the NativeActivity
+  variant, use AndroidManifest-nativeactivity.xml instead and drop the
+  dependencies block.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -16,7 +19,7 @@
         android:theme="@style/Theme.AppCompat.NoActionBar">
 
         <activity
-            android:name="com.google.androidgamesdk.GameActivity"
+            android:name="ai.qompass.versemend.VersemendActivity"
             android:exported="true"
             android:configChanges="orientation|keyboardHidden|screenSize|keyboard" android:windowSoftInputMode="adjustResize">
             <meta-data

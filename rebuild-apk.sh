@@ -8,7 +8,7 @@ sha256sum "$APK"; ls -la "$APK"
 S=emulator-5560
 adb -s $S install -r "$APK"
 adb -s $S shell am force-stop ai.qompass.versemend
-adb -s $S shell am start -n ai.qompass.versemend/com.google.androidgamesdk.GameActivity 2>&1 | tail -1
+adb -s $S shell am start -n ai.qompass.versemend/ai.qompass.versemend.VersemendActivity 2>&1 | tail -1
 sleep 16
 adb -s $S shell dumpsys activity activities | grep -E "topResumedActivity" | head -1
 adb -s $S exec-out screencap -p > "$E/android/a-title.png"
