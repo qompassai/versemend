@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  GameActivity variant manifest (the variant built in this proof).
+  The activity class is com.google.androidgamesdk.GameActivity, from the
+  androidx.games:games-activity AAR (see the dependencies block in
+  app/build.gradle.kts). It extends AppCompatActivity, hence the
+  Theme.AppCompat application theme. The android.app.lib_name meta-data
+  is identical for both backends. For the NativeActivity variant, use
+  AndroidManifest-nativeactivity.xml instead and drop the dependencies
+  block.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="Versemend"
+        android:theme="@style/Theme.AppCompat.NoActionBar">
+
+        <activity
+            android:name="com.google.androidgamesdk.GameActivity"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|screenSize|keyboard" android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="versemend" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
