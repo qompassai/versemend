@@ -89,13 +89,42 @@ function Shots.run(factory)
     beat("15-chronicle")
     click(640, 602) -- back
     app:event({ type = "key", key = "escape" })
-    click(530, 543) -- the codex
+    click(496, 543) -- the codex
     beat("16-codex")
     click(640, 602) -- back to the hall
-    click(1098, 543) -- the guest book, kept by the player's own ledger
+    click(912, 543) -- the guest book, kept by the player's own ledger
     beat("17-guestbook")
     click(936, 493) -- the absent name, received at the door
     beat("18-guestbook-absence")
+    click(640, 602) -- back to the hall
+    -- Domain 2: the Registrar's board, a commission, the second seal.
+    click(255, 570) -- the Registrar's tab
+    beat("19-hub-domain2")
+    click(700, 247) -- The Missing Plank
+    beat("20-commission-d2")
+    click(1080, 717) -- the brief
+    click(640, 604) -- the second card
+    beat("21-demo-d2")
+    click(640, 604) -- to the writing surface
+    beat("22-editor-d2")
+    set_buffer(1, F.d2l2.solution)
+    click(1045, 82)
+    click(640, 714)
+    seal(Levels[4], 171, 2, { F.d2l1.solution })
+    seal(Levels[6], 323, 3, { F.d2l3.solution })
+    local Boss2 = require("boss2")
+    seal(Boss2, 399, 2, { F.boss2_act1.solution, F.boss2_act2.solution })
+    beat("23-completion-d2")
+    click(480, 664) -- the chronicle, both domains
+    beat("24-chronicle-full")
+    click(640, 602) -- back to the hall
+    click(496, 543) -- the codex, two leaves filled
+    beat("25-codex-two-leaves")
+    click(640, 602) -- back to the hall
+    click(1120, 543) -- the inn desk, kept by the player's own keys
+    beat("26-inndesk")
+    click(360, 493) -- let Ada the first room
+    beat("27-inndesk-evening")
     return true
 end
 

@@ -1,9 +1,10 @@
--- The slice's proof script. Runs identically under the system Lua
+-- The game's proof script. Runs identically under the system Lua
 -- interpreter (tests/run-all.lua) and inside the shipped binary
 -- (host --selftest): unit gates for the harness, the save, and the
 -- photosafety law, then a full scripted playthrough of the loop —
--- title, hall, three commissions, a backlash, the boss, the seal —
--- asserting screens, verdicts, and the chronicle as it goes.
+-- title, hall, six commissions, a backlash, two bosses, two seals,
+-- both codex leaves working in the world as stations — asserting
+-- screens, verdicts, and the chronicle as it goes.
 -- Output: a transcript. The two runs' transcripts must be
 -- byte-identical; the harness diffs them.
 local Selftest = {}
@@ -24,6 +25,7 @@ function Selftest.run(platform_factory)
     local Gate = require("gate")
     local Levels = require("levels")
     local Boss = require("boss")
+    local Boss2 = require("boss2")
     local Save = require("save")
     local Effects = require("effects")
     local F = require("fixtures")
@@ -102,6 +104,33 @@ function Selftest.run(platform_factory)
         boss_wrong:find("test " .. F.boss_act2.wrong_first_fail .. " FAIL",
             1, true) ~= nil)
 
+    -- The second boss: both acts together, the same law.
+    local function boss2_unit(src1, src2, want, tag)
+        local sums, verdicts = {}, {}
+        for i = 1, 5 do
+            local record, passed = Gate.run(Boss2, { src1, src2 })
+            sums[i] = Gate.checksum(record)
+            verdicts[i] = passed
+        end
+        local stable = true
+        for i = 2, 5 do
+            if sums[i] ~= sums[1] or verdicts[i] ~= verdicts[1] then
+                stable = false
+            end
+        end
+        check(tag .. " verdict", verdicts[1] == want)
+        check(tag .. " deterministic-x5", stable)
+        emit("unit " .. tag .. " checksum " .. sums[1])
+        return Gate.run(Boss2, { src1, src2 })
+    end
+    boss2_unit(F.boss2_act1.solution, F.boss2_act2.solution, true,
+        "boss2-solution")
+    local boss2_wrong = boss2_unit(F.boss2_act1.solution, F.boss2_act2.wrong,
+        false, "boss2-wrong")
+    check("boss2-wrong-first-fail",
+        boss2_wrong:find("test " .. F.boss2_act2.wrong_first_fail .. " FAIL",
+            1, true) ~= nil)
+
     -- ---- unit: the save round-trips, byte for byte ----
     do
         local st = Save.fresh()
@@ -172,7 +201,7 @@ function Selftest.run(platform_factory)
     check("hub reached", app.screen == "hub")
 
     -- The guest book before the seal: present, and honestly closed.
-    click(1098, 543) -- The Guest Book
+    click(912, 543) -- The Guest Book
     check("guestbook closed before the seal",
         app.screen == "guestbook" and app.guest_book.state == "closed")
     click(640, 602) -- back to the hall
@@ -251,7 +280,7 @@ function Selftest.run(platform_factory)
 
     -- The leaf works in the world: the guest book is kept by the
     -- player's own sealed ledger program.
-    click(1098, 543) -- The Guest Book
+    click(912, 543) -- The Guest Book
     check("guestbook open after the seal",
         app.screen == "guestbook" and app.guest_book.state == "open")
     click(360, 493) -- Ada
@@ -274,11 +303,83 @@ function Selftest.run(platform_factory)
     -- honestly, and nothing crashes.
     app.state.drafts["d1boss-act2"] = "this is not lua at all (("
     app:persist()
-    click(1098, 543)
+    click(912, 543)
     check("guestbook broken draft refused",
         app.screen == "guestbook" and app.guest_book.state == "broken")
     click(640, 602)
     app.state.drafts["d1boss-act2"] = F.boss_act2.solution
+    app:persist()
+
+    -- Domain 2: the Registrar's board. The inn desk before the
+    -- second seal: present, and honestly closed.
+    click(1120, 543) -- The Inn Desk
+    check("inndesk closed before the seal",
+        app.screen == "inndesk" and app.inn_desk.state == "closed")
+    click(640, 602) -- back to the hall
+    check("hub after inndesk", app.screen == "hub")
+    click(255, 570) -- the Registrar's tab
+    check("domain 2 board", app.hub_domain == 2)
+
+    play_level(level_by_id.d2l1, 171, F.d2l1.solution, 2)
+    play_level(level_by_id.d2l2, 247, F.d2l2.solution, 2)
+    play_level(level_by_id.d2l3, 323, F.d2l3.solution, 3)
+
+    -- The second boss.
+    click(700, 399)
+    check("boss2 commission", app.screen == "commission")
+    click(1080, 717)
+    for _ = 1, 2 do click(640, 604) end
+    check("boss2 editor", app.screen == "editor")
+    set_buffer(1, F.boss2_act1.solution)
+    click(727, 84) -- Act II tab
+    set_buffer(2, F.boss2_act2.solution)
+    click(1045, 82)
+    check("boss2 gate pass",
+        app.screen == "gate" and app.gate_view.passed)
+    check("boss2 sealed", app.state.sealed.d2boss == true)
+    click(640, 714) -- See the Seal
+    check("completion2 reached", app.screen == "completion")
+    click(480, 664) -- The Chronicle
+    check("chronicle2 reached", app.screen == "chronicle")
+    click(640, 602) -- back to the hall
+    check("hub after boss2", app.screen == "hub")
+
+    -- The second leaf works in the world: the inn desk is kept by
+    -- the player's own sealed allocation library.
+    click(1120, 543) -- The Inn Desk
+    check("inndesk open after the seal",
+        app.screen == "inndesk" and app.inn_desk.state == "open")
+    click(360, 493) -- Ada
+    check("inndesk lets Ada room 1",
+        app.inn_desk.result ~= nil and app.inn_desk.result.kind == "let"
+            and app.inn_desk.result.room == 1)
+    click(552, 493) -- Wren
+    check("inndesk lets Wren room 2",
+        app.inn_desk.result ~= nil and app.inn_desk.result.kind == "let"
+            and app.inn_desk.result.room == 2)
+    click(744, 493) -- Cy
+    check("inndesk lets Cy room 3",
+        app.inn_desk.result ~= nil and app.inn_desk.result.kind == "let"
+            and app.inn_desk.result.room == 3)
+    click(936, 493) -- The Late Traveller — the house is full
+    check("inndesk keeps the count at full",
+        app.inn_desk.result ~= nil and app.inn_desk.result.kind == "full")
+    click(360, 493) -- Ada gives the room back
+    check("inndesk release",
+        app.inn_desk.result ~= nil
+            and app.inn_desk.result.kind == "given_back")
+    click(640, 602) -- back to the hall
+    check("hub after kept desk", app.screen == "hub")
+
+    -- A later hand overwrites the sealed draft: the desk refuses
+    -- honestly, and nothing crashes.
+    app.state.drafts["d2boss-act2"] = "Inn = {}"
+    app:persist()
+    click(1120, 543)
+    check("inndesk broken draft refused",
+        app.screen == "inndesk" and app.inn_desk.state == "broken")
+    click(640, 602)
+    app.state.drafts["d2boss-act2"] = F.boss2_act2.solution
     app:persist()
 
     -- The chronicle survives a restart, in the same single file.
@@ -288,7 +389,9 @@ function Selftest.run(platform_factory)
     check("save parses after play", parsed ~= nil
         and parsed.boss_done == true
         and parsed.sealed.d1l1 and parsed.sealed.d1l2
-        and parsed.sealed.d1l3)
+        and parsed.sealed.d1l3
+        and parsed.sealed.d2l1 and parsed.sealed.d2l2
+        and parsed.sealed.d2l3 and parsed.sealed.d2boss)
     local app2 = App.new(platform)
     check("restart lands on title", app2.screen == "title")
     app2:render()

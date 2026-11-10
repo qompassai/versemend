@@ -1,4 +1,4 @@
--- Versemend — the playable slice: Domain 1 of the Old Tongue.
+-- Versemend — the playable game: Domains 1–2 of the Old Tongue.
 -- The whole game flow lives here, in plain Lua, against a small
 -- platform interface (draw primitives, events, sound cues, one save
 -- file). Any host that implements the interface runs the same game:
@@ -9,6 +9,7 @@ package.path = package.path .. ";./game/?.lua"
 local Content = require("content")
 local Levels = require("levels")
 local Boss = require("boss")
+local Boss2 = require("boss2")
 local Gate = require("gate")
 local Save = require("save")
 local Effects = require("effects")
@@ -18,11 +19,22 @@ local W, H = 1280, 800
 local App = {}
 App.__index = App
 
+local BOSSES = { Boss, Boss2 }
+
 local function level_by_id(id)
     for _, l in ipairs(Levels) do
         if l.id == id then return l end
     end
-    if Boss.id == id then return Boss end
+    for _, b in ipairs(BOSSES) do
+        if b.id == id then return b end
+    end
+    return nil
+end
+
+local function boss_of(domain)
+    for _, b in ipairs(BOSSES) do
+        if b.domain == domain then return b end
+    end
     return nil
 end
 
@@ -37,6 +49,7 @@ function App.new(platform)
     self.state = saved or Save.fresh()
     self.corrupt_save = (raw ~= nil and saved == nil)
     self.screen = self.state.motion_chosen and "title" or "motion"
+    self.hub_domain = 1
     self.dialogue = nil
     self.editor = nil
     self.gate_view = nil
@@ -188,7 +201,7 @@ function App:on_key(key)
         end
     elseif key == "escape" then
         if self.screen == "codex" or self.screen == "chronicle"
-            or self.screen == "guestbook" then
+            or self.screen == "guestbook" or self.screen == "inndesk" then
             self:go("hub")
         elseif self.screen == "gate" then
             self:go("hub")
@@ -291,18 +304,32 @@ end
 
 -- ---------- screens: hub ----------
 
+function App:is_done(level)
+    if level.id == Boss.id then return self.state.boss_done end
+    return self.state.sealed[level.id] or false
+end
+
+function App:domain_open(domain)
+    if domain <= 1 then return true end
+    return self.state.boss_done
+end
+
 function App:board_entries()
     local entries = {}
     for _, l in ipairs(Levels) do
-        entries[#entries + 1] = { level = l, boss = false }
+        if l.domain == self.hub_domain then
+            entries[#entries + 1] = { level = l, boss = false }
+        end
     end
-    entries[#entries + 1] = { level = Boss, boss = true }
+    entries[#entries + 1] = { level = boss_of(self.hub_domain), boss = true }
     return entries
 end
 
-function App:boss_unlocked()
+function App:boss_unlocked(boss)
     for _, l in ipairs(Levels) do
-        if not self.state.sealed[l.id] then return false end
+        if l.domain == boss.domain and not self.state.sealed[l.id] then
+            return false
+        end
     end
     return true
 end
@@ -314,35 +341,61 @@ function App:render_hub()
     self:plate(36, 36, 300, 560)
     self.p.draw_image("keeper", 52, 52, 268, 335, 255)
     self:text_block(52, 404, Content.hub.keeper_idle, "body", "ink", 268)
+    -- The domain tabs: whose board the hall shows. They sit side
+    -- by side at the plate's foot — the Keeper's idle words above
+    -- them take four wrapped lines in the shipped font.
+    self:button(52, 552, 130, 36, "hub_domain_1",
+        Content.hub.domain_tab_d1,
+        self.hub_domain == 1 and "body_bold" or "body")
+    self:button(190, 552, 130, 36, "hub_domain_2",
+        Content.hub.domain_tab_d2,
+        self.hub_domain == 2 and "body_bold" or "body")
     -- The commission board.
     local bx, by, bw = 372, 36, 872
     self:plate(bx, by, bw, 560)
     self.p.draw_text(bx + 28, by + 18, Content.hub.board_title,
         "display", "ink_blue")
-    self.p.draw_text(bx + 28, by + 64, Content.hub.board_note,
+    self.p.draw_text(bx + 28, by + 64,
+        self.hub_domain == 2 and Content.hub.board_note_d2
+            or Content.hub.board_note,
         "small", "ink")
+    local domain_locked = not self:domain_open(self.hub_domain)
     local y = by + 104
     for _, e in ipairs(self:board_entries()) do
         local l = e.level
         local label, status
+        local locked = domain_locked
         if e.boss then
-            if self.state.boss_done then
+            local open_text = l.id == Boss2.id
+                and Content.hub.boss_open_d2 or Content.hub.boss_open
+            local locked_text = l.id == Boss2.id
+                and Content.hub.boss_locked_d2 or Content.hub.boss_locked
+            if self:is_done(l) then
                 label = l.title .. " — fallen"
                 status = Content.hub.practice_mark
-            elseif self:boss_unlocked() then
-                label = Content.hub.boss_open
+                locked = false
+            elseif domain_locked then
+                label = locked_text
+                status = Content.hub.domain_locked_note
+            elseif self:boss_unlocked(l) then
+                label = open_text
                 status = ""
+                locked = false
             else
-                label = Content.hub.boss_locked
+                label = locked_text
                 status = "locked"
+                locked = true
             end
         else
             label = ("Level %d — %s (%s)"):format(l.number, l.title, l.mechanism)
-            status = self.state.sealed[l.id]
-                and Content.hub.practice_mark or ""
+            if domain_locked then
+                status = Content.hub.domain_locked_note
+            else
+                status = self.state.sealed[l.id]
+                    and Content.hub.practice_mark or ""
+                locked = false
+            end
         end
-        local locked = e.boss and not self:boss_unlocked()
-            and not self.state.boss_done
         self:button(bx + 28, y, bw - 56, 62,
             "board_" .. l.id, label, "body")
         if status ~= "" then
@@ -351,11 +404,13 @@ function App:render_hub()
         end
         y = y + 76
     end
-    self:button(bx + 28, 520, 260, 46, "hub_codex", Content.hub.codex_button)
-    self:button(bx + 312, 520, 260, 46, "hub_chronicle",
+    self:button(bx + 28, 520, 192, 46, "hub_codex", Content.hub.codex_button)
+    self:button(bx + 236, 520, 192, 46, "hub_chronicle",
         Content.hub.chronicle_button)
-    self:button(bx + 596, 520, 260, 46, "hub_guestbook",
+    self:button(bx + 444, 520, 192, 46, "hub_guestbook",
         Content.hub.guest_book_button)
+    self:button(bx + 652, 520, 192, 46, "hub_inndesk",
+        Content.hub.inn_desk_button)
     -- The standing-gates board, at the door.
     self:plate(36, 640, 1208, 120)
     self:text_block(60, 664, {
@@ -368,9 +423,10 @@ end
 function App:start_commission(level)
     self.p.sound("lamp")
     self.current = level
-    self.practice = (level.id == Boss.id and self.state.boss_done)
-        or (level.id ~= Boss.id and self.state.sealed[level.id]) or false
-    local pages = { { speaker = "The Keeper of Lamps", lines = level.brief } }
+    self.practice = self:is_done(level)
+    local pages = {
+        { speaker = level.master or "The Keeper of Lamps", lines = level.brief },
+    }
     self:go("commission")
     self:start_dialogue(pages, function(app)
         app.demo_index = 1
@@ -743,7 +799,7 @@ function App:render_gate()
     self:text_block(190, 626, Content.gate.record_note, "small",
         "parchment", 900)
     if gv.passed then
-        if gv.level.id == Boss.id and not self.practice then
+        if gv.level.acts and not self.practice then
             self:button(440, 690, 400, 48, "gate_primary",
                 "See the Seal", "body")
         else
@@ -770,7 +826,8 @@ function App:render_backlash()
         "body", "ink", 730)
     self:text_block(276, y + 12, { "\"" .. (gv.fail_say or "") .. "\"" },
         "body_bold", "ink_blue", 730)
-    self.p.draw_text(276, y + 96, "— The Keeper of Lamps", "body", "ink")
+    self.p.draw_text(276, y + 96,
+        "— " .. (gv.level.master or "The Keeper of Lamps"), "body", "ink")
     self:button(240, 620, 380, 52, "backlash_editor",
         Content.backlash.to_editor, "body")
     self:button(660, 620, 380, 52, "backlash_hall",
@@ -881,30 +938,146 @@ function App:render_guest_book()
         Content.guest_book.back, "body")
 end
 
+-- ---------- the inn desk: the second leaf, working ----------
+
+-- The inn at the parish edge, kept by the player's own Innkeeper's
+-- Keys once the Borderless Inn has fallen: three rooms, let and
+-- freed at the desk. The count the desk speaks is the library's own
+-- kept count — the Domain 2 lesson, working at the door.
+local INN_DESK_GUESTS = { "Ada", "Wren", "Cy", "The Late Traveller" }
+local INN_DESK_ROOMS = 3
+
+function App:open_inn_desk()
+    local desk = { state = "closed", result = nil }
+    if self.state.sealed[Boss2.id] then
+        local act = Boss2.acts[2]
+        local source = self.state.drafts[act.id]
+        local env = source and Gate.load_program(act, source)
+        if env then
+            local ok, inn = pcall(function()
+                return env.Inn.new(INN_DESK_ROOMS)
+            end)
+            if ok and type(inn) == "table" then
+                desk.state = "open"
+                desk.inn = inn
+            else
+                desk.state = "broken"
+            end
+        else
+            desk.state = "broken"
+        end
+    end
+    self.inn_desk = desk
+    self:log("inndesk " .. desk.state)
+    self:go("inndesk")
+end
+
+function App:inn_desk_press(name)
+    local desk = self.inn_desk
+    local inn = desk.inn
+    local ok, room = pcall(inn.room_of, inn, name)
+    if ok and room ~= nil then
+        local freed = pcall(inn.release, inn, room)
+        if freed then
+            desk.result = { kind = "given_back", name = name }
+            self:log("inndesk release")
+        end
+        return
+    end
+    local let_ok, placed = pcall(inn.allocate, inn, name)
+    if let_ok and placed ~= nil then
+        desk.result = { kind = "let", name = name, room = placed }
+        self:log("inndesk allocate")
+    elseif let_ok then
+        desk.result = { kind = "full", name = name }
+        self:log("inndesk full")
+    end
+end
+
+function App:render_inn_desk()
+    local desk = self.inn_desk
+    self.p.draw_image("town", 0, 0, W, H, 255)
+    self.p.draw_rect(0, 0, W, H, "ink", 150)
+    self:plate(240, 90, 800, 560)
+    self.p.draw_text(276, 120, Content.inn_desk.title,
+        "display", "ink_blue")
+    if desk.state == "closed" then
+        self:text_block(276, 176, Content.inn_desk.closed_lines,
+            "body", "ink", 730)
+    elseif desk.state == "broken" then
+        self:text_block(276, 176, Content.inn_desk.broken_lines,
+            "body", "ink", 730)
+    else
+        local y = self:text_block(276, 176,
+            Content.inn_desk.open_intro, "body", "ink", 730)
+        if desk.result then
+            local r = desk.result
+            local line
+            if r.kind == "let" then
+                line = r.name .. " " .. Content.inn_desk.let_room
+                    :format(r.room)
+            elseif r.kind == "given_back" then
+                line = r.name .. " " .. Content.inn_desk.given_back
+            else
+                line = Content.inn_desk.full
+            end
+            y = self:text_block(276, y + 24, { line },
+                "body_bold", "ink_blue", 730)
+        end
+        local ok, report = pcall(desk.inn.report, desk.inn)
+        if ok and type(report) == "string" then
+            local house = Content.inn_desk.house_line
+                :format(report:gsub("\n", " · "))
+            self:text_block(276, y + 16, { house }, "body", "ink", 730)
+        end
+        for i, name in ipairs(INN_DESK_GUESTS) do
+            self:button(272 + (i - 1) * 192, 470, 176, 46,
+                "desk_name_" .. i, name, "small")
+        end
+    end
+    self:button(520, 580, 240, 44, "page_back",
+        Content.inn_desk.back, "body")
+end
+
 -- ---------- codex, chronicle, completion ----------
 
 function App:render_codex()
     self.p.draw_image("town", 0, 0, W, H, 255)
     self.p.draw_rect(0, 0, W, H, "ink", 150)
     self:plate(240, 90, 800, 560)
-    if self.state.boss_done then
-        self.p.draw_text(276, 120, Content.codex_d1.title,
-            "display", "ink_blue")
-        self.p.draw_text(276, 152, Content.codex_d1.spread,
-            "small", "ink")
-        self.p.draw_text(276, 176, Content.codex_d1.entry_title,
-            "body_bold", "ink")
-        local y = self:text_block(276, 216, Content.codex_d1.lines,
-            "body", "ink", 730)
-        self:text_block(276, y + 16, Content.codex_d1.loot_line,
-            "body_bold", "ink_blue", 730)
-    else
+    local have1 = self.state.boss_done
+    local have2 = self.state.sealed[Boss2.id] or false
+    if not have1 and not have2 then
         self.p.draw_text(276, 120, Content.codex_empty.title,
             "display", "ink_blue")
         self.p.draw_text(276, 152, Content.codex_empty.spread,
             "small", "ink")
         self:text_block(276, 176, Content.codex_empty.lines,
             "body", "ink", 730)
+    else
+        local title = have1 and Content.codex_d1.title
+            or Content.codex_d2.title
+        self.p.draw_text(276, 120, title, "display", "ink_blue")
+        local spread
+        if have1 and have2 then
+            spread = Content.codex_both.spread
+        elseif have1 then
+            spread = Content.codex_d1.spread
+        else
+            spread = Content.codex_d2.spread
+        end
+        self.p.draw_text(276, 152, spread, "small", "ink")
+        local leaves = {}
+        if have1 then leaves[#leaves + 1] = Content.codex_d1 end
+        if have2 then leaves[#leaves + 1] = Content.codex_d2 end
+        local y = 186
+        for _, leaf in ipairs(leaves) do
+            self.p.draw_text(276, y, leaf.entry_title, "body_bold", "ink")
+            y = self:text_block(276, y + 32, leaf.lines,
+                "body", "ink", 730, 30)
+            y = self:text_block(276, y + 6, leaf.loot_line,
+                "body_bold", "ink_blue", 730, 30) + 24
+        end
     end
     self:button(520, 580, 240, 44, "page_back", Content.gate.to_hall, "body")
 end
@@ -917,23 +1090,23 @@ function App:render_chronicle()
         "display", "ink_blue")
     local y = 180
     local any = false
-    local keys = { "d1l1", "d1l2", "d1l3" }
+    local keys = {
+        "d1l1", "d1l2", "d1l3", "d1boss",
+        "d2l1", "d2l2", "d2l3", "d2boss",
+    }
     for _, id in ipairs(keys) do
-        if self.state.sealed[id] then
+        local done = (id == "d1boss") and self.state.boss_done
+            or self.state.sealed[id]
+        if done then
             any = true
             y = self:text_block(276, y,
                 { "✓ " .. Content.chronicle[id] }, "body", "ink", 730) + 8
         end
     end
-    if self.state.boss_done then
-        any = true
-        y = self:text_block(276, y,
-            { "✓ " .. Content.chronicle.d1boss }, "body", "ink", 730) + 8
-    end
     if not any then
         y = self:text_block(276, y, Content.chronicle.empty,
             "body", "ink", 730)
-    elseif self.state.boss_done then
+    elseif self.state.boss_done or self.state.sealed[Boss2.id] then
         y = self:text_block(276, y + 12, Content.chronicle.closing,
             "body", "ink_blue", 730)
     end
@@ -941,17 +1114,18 @@ function App:render_chronicle()
 end
 
 function App:render_completion()
+    local c = self.completion or Content.completion
     self.p.draw_image("town", 0, 0, W, H, 255)
     self.p.draw_rect(0, 0, W, H, "ink", 130)
     self:plate(240, 150, 800, 430)
-    local tw = self.p.measure(Content.completion.title, "display")
+    local tw = self.p.measure(c.title, "display")
     self.p.draw_text(math.floor((W - tw) / 2), 190,
-        Content.completion.title, "display", "ink_blue")
-    self:text_block(300, 260, Content.completion.lines, "body", "ink", 680)
+        c.title, "display", "ink_blue")
+    self:text_block(300, 260, c.lines, "body", "ink", 680)
     self:button(340, 640, 280, 48, "completion_chronicle",
         Content.hub.chronicle_button, "body")
     self:button(660, 640, 280, 48, "completion_title",
-        Content.completion.to_title, "body")
+        c.to_title, "body")
 end
 
 -- ---------- dispatch ----------
@@ -971,20 +1145,33 @@ function App:on_button(id)
     elseif id:sub(1, 6) == "board_" then
         local level = level_by_id(id:sub(7))
         if level then
-            if level.id == Boss.id and not self:boss_unlocked()
-                and not self.state.boss_done then
+            if level.domain == 2 and not self.state.boss_done then
+                return
+            end
+            if level.acts and not self:boss_unlocked(level)
+                and not self:is_done(level) then
                 return
             end
             self:start_commission(level)
         end
+    elseif id == "hub_domain_1" or id == "hub_domain_2" then
+        self.hub_domain = tonumber(id:sub(12))
+        self:log("hub domain " .. self.hub_domain)
     elseif id == "hub_codex" then self:go("codex")
     elseif id == "hub_chronicle" then self:go("chronicle")
     elseif id == "hub_guestbook" then self:open_guest_book()
+    elseif id == "hub_inndesk" then self:open_inn_desk()
     elseif id:sub(1, 8) == "gb_name_" then
         local name = GUEST_BOOK_NAMES[tonumber(id:sub(9))]
         if name and self.guest_book
             and self.guest_book.state == "open" then
             self:guest_book_lookup(name)
+        end
+    elseif id:sub(1, 10) == "desk_name_" then
+        local name = INN_DESK_GUESTS[tonumber(id:sub(11))]
+        if name and self.inn_desk
+            and self.inn_desk.state == "open" then
+            self:inn_desk_press(name)
         end
     elseif id == "demo_next" then
         self:demo_advance()
@@ -1009,7 +1196,9 @@ function App:on_button(id)
         local tok = TOKENS[tonumber(id:sub(7))]
         if tok then self:editor_text(tok) end
     elseif id == "gate_primary" then
-        if self.gate_view.level.id == Boss.id and not self.practice then
+        if self.gate_view.level.acts and not self.practice then
+            self.completion = self.gate_view.level.id == Boss2.id
+                and Content.completion_d2 or Content.completion
             self:go("completion")
         else
             self:go("hub")
@@ -1040,6 +1229,7 @@ function App:render()
     elseif s == "gate" then self:render_gate()
     elseif s == "backlash" then self:render_backlash()
     elseif s == "guestbook" then self:render_guest_book()
+    elseif s == "inndesk" then self:render_inn_desk()
     elseif s == "codex" then self:render_codex()
     elseif s == "chronicle" then self:render_chronicle()
     elseif s == "completion" then self:render_completion()

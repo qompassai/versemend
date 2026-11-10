@@ -2,7 +2,7 @@
 //!
 //! Modes (mirroring the slice C host's evidence paths):
 //!   versemend                    the game, in a window
-//!   versemend --selftest         the slice's 82-check harness against
+//!   versemend --selftest         the game's 147-check harness against
 //!                                this host's platforms; transcript on
 //!                                stdout, exit code = failure count
 //!   versemend --strand-proof     D-833 dual-interpreter proof: the

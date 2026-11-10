@@ -10,10 +10,10 @@
 //!
 //! * the GUI platform (Bevy UI nodes + Bevy audio) for play,
 //! * an in-memory platform factory for `--selftest`, which runs the
-//!   slice's own 91-check proof script (full playthrough included)
+//!   game's own 147-check proof script (full playthrough included)
 //!   inside this binary's Lua state — its transcript must equal the
-//!   C host's byte for byte, and the four gate records must reproduce
-//!   the slice's checksums exactly,
+//!   system-Lua runs byte for byte, and the gate records must
+//!   reproduce their recorded checksums exactly,
 //! * the same GUI platform driven by the slice's `shots.lua` walk
 //!   for `--screenshot`, capturing the named beats as PNGs.
 //!
@@ -41,6 +41,7 @@ use mlua::prelude::*;
 const MODULES: &[(&str, &str)] = &[
     ("app", include_str!("../game/app.lua")),
     ("boss", include_str!("../game/boss.lua")),
+    ("boss2", include_str!("../game/boss2.lua")),
     ("content", include_str!("../game/content.lua")),
     ("effects", include_str!("../game/effects.lua")),
     ("gate", include_str!("../game/gate.lua")),
@@ -1163,8 +1164,9 @@ mod tests {
         assert_eq!(metrics_of("small"), (8.0, 20.0));
     }
 
-    /// The adoption gate in miniature: all four of the slice's gate
-    /// records reproduce inside this host's Lua 5.5 state.
+    /// The adoption gate in miniature: all eight gate records (six
+    /// commissions, two bosses) reproduce inside this host's
+    /// Lua 5.5 state, at their recorded checksums.
     #[test]
     fn slice_gate_records_reproduce() {
         let lua = new_lua().expect("lua loads");
@@ -1172,37 +1174,48 @@ mod tests {
             ("d1l1", "89ce2596"),
             ("d1l2", "157fd7ed"),
             ("d1l3", "6047aa34"),
+            ("d2l1", "b04849ed"),
+            ("d2l2", "5c1ac886"),
+            ("d2l3", "2e51dccd"),
         ] {
             let (_, passed, sum) = game_gate_check(&lua, level).expect("gate runs");
             assert!(passed, "{level} solution must pass");
             assert_eq!(sum, want, "{level} checksum");
         }
         let gate = require(&lua, "gate").expect("gate module");
-        let boss = require(&lua, "boss").expect("boss module");
         let fixtures = require(&lua, "fixtures").expect("fixtures");
-        let a1: LuaTable = fixtures.get("boss_act1").expect("act1");
-        let a2: LuaTable = fixtures.get("boss_act2").expect("act2");
-        let srcs = lua.create_table().expect("srcs");
-        srcs.set(1, a1.get::<String>("solution").expect("s1"))
-            .expect("set1");
-        srcs.set(2, a2.get::<String>("solution").expect("s2"))
-            .expect("set2");
-        let run: LuaFunction = gate.get("run").expect("run fn");
-        let (record, passed): (String, bool) = run.call((boss, srcs)).expect("boss run");
-        let checksum: LuaFunction = gate.get("checksum").expect("checksum fn");
-        let sum: String = checksum.call(record).expect("boss checksum");
-        assert!(passed, "boss solution must pass");
-        assert_eq!(sum, "d447229a", "boss checksum");
+        for (module, act1_key, act2_key, want) in [
+            ("boss", "boss_act1", "boss_act2", "d447229a"),
+            ("boss2", "boss2_act1", "boss2_act2", "be96136b"),
+        ] {
+            let boss = require(&lua, module).expect("boss module");
+            let a1: LuaTable = fixtures.get(act1_key).expect("act1");
+            let a2: LuaTable = fixtures.get(act2_key).expect("act2");
+            let srcs = lua.create_table().expect("srcs");
+            srcs.set(1, a1.get::<String>("solution").expect("s1"))
+                .expect("set1");
+            srcs.set(2, a2.get::<String>("solution").expect("s2"))
+                .expect("set2");
+            let run: LuaFunction = gate.get("run").expect("run fn");
+            let (record, passed): (String, bool) = run.call((boss, srcs)).expect("boss run");
+            let checksum: LuaFunction = gate.get("checksum").expect("checksum fn");
+            let sum: String = checksum.call(record).expect("boss checksum");
+            assert!(passed, "{module} solution must pass");
+            assert_eq!(sum, want, "{module} checksum");
+        }
     }
 
-    /// The full 91-check harness, in-process: zero failures and the
-    /// four unit checksums present in the transcript.
+    /// The full 147-check harness, in-process: zero failures and
+    /// the unit checksums present in the transcript.
     #[test]
     fn selftest_transcript_is_clean() {
         let (transcript, failures) = run_selftest().expect("selftest runs");
         assert_eq!(failures, 0, "{transcript}");
         assert!(transcript.contains("SELFTEST failures 0"));
-        for sum in ["89ce2596", "157fd7ed", "6047aa34", "d447229a"] {
+        for sum in [
+            "89ce2596", "157fd7ed", "6047aa34", "d447229a", "b04849ed", "5c1ac886", "2e51dccd",
+            "be96136b", "602d252b",
+        ] {
             assert!(transcript.contains(sum), "missing {sum}");
         }
         let passes = transcript
@@ -1213,7 +1226,7 @@ mod tests {
             .lines()
             .filter(|l| l.starts_with("check ") && l.ends_with(" FAIL"))
             .count();
-        assert_eq!(passes, 91, "expected 91 check PASS lines, got {passes}");
+        assert_eq!(passes, 147, "expected 147 check PASS lines, got {passes}");
         assert_eq!(fails, 0, "expected no check FAIL lines, got {fails}");
     }
 }

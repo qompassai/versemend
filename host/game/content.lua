@@ -83,6 +83,46 @@ Content.hub = {
     codex_button = "The Codex",
     chronicle_button = "The Chronicle",
     guest_book_button = "The Guest Book",
+    inn_desk_button = "The Inn Desk",
+    domain_tab_d1 = "Domain 1",
+    domain_tab_d2 = "Domain 2",
+    board_note_d2 = "Domain 2 — Tables, the one structure, kept by the Registrar.",
+    boss_locked_d2 = "The Borderless Inn — silent until the three works are sealed",
+    boss_open_d2 = "The Borderless Inn — the boss of Domain 2",
+    domain_locked_note = "Domain 1 stands first: the Hollow Guest has not fallen.",
+}
+
+Content.inn_desk = {
+    title = "The Inn Desk",
+    closed_lines = {
+        "The inn at the parish edge takes its guests by the",
+        "old book, and the old book counts the house by its",
+        "border: a room standing empty in the middle of the",
+        "wing makes guests vanish from the count while they",
+        "sleep.",
+        "",
+        "When the Innkeeper's Keys are kept — the Borderless",
+        "Inn faced, the technique sealed — this desk will be",
+        "kept by your own library, and its count will be a",
+        "kept thing.",
+    },
+    open_intro = {
+        "The desk is kept now by your own Innkeeper's Keys —",
+        "the program you proved at the gate, working at the",
+        "door. Three rooms, kept exactly. Ask after a guest,",
+        "or let them a room:",
+    },
+    broken_lines = {
+        "The kept keys do not turn. The inscription in the",
+        "chronicle no longer runs — a later hand has",
+        "overwritten the sealed draft. Seal the Borderless",
+        "Inn again, and the desk will keep itself once more.",
+    },
+    let_room = "is let room %d.",
+    given_back = "has given the room back.",
+    full = "The inn is full — the count was kept, and no room was invented.",
+    house_line = "The house: %s",
+    back = "Return to the Hall",
 }
 
 Content.guest_book = {
@@ -153,6 +193,7 @@ Content.backlash = {
 Content.seal = {
     level = "The commission is sealed and entered in the chronicle.",
     boss = "The boss has fallen. Domain 1 is sealed.",
+    boss_d2 = "The boss has fallen. Domain 2 is sealed.",
 }
 
 Content.codex_empty = {
@@ -180,6 +221,22 @@ Content.codex_d1 = {
     loot_line = "Kept in the grimoire: The Guest Ledger — the registry library.",
 }
 
+Content.codex_both = {
+    spread = "The spread: leaves I and II are filled. Twelve leaves wait, blank.",
+}
+
+Content.codex_d2 = {
+    title = "Domain 2 — the technique is yours",
+    spread = "The spread: leaf II is filled. Thirteen leaves wait, blank.",
+    entry_title = "Keep the count yourself",
+    lines = {
+        "A length you depend on is state you own. It works",
+        "because an explicit count is a contract; a border",
+        "is weather.",
+    },
+    loot_line = "Kept in the grimoire: The Innkeeper's Keys — the allocation library.",
+}
+
 Content.chronicle = {
     title = "The Guild Chronicle",
     empty = "Blank pages, honestly kept. An entry exists only when its proof has been seen.",
@@ -187,6 +244,10 @@ Content.chronicle = {
     d1l2 = "Domain 1, second work — The Two Truths. Sealed at the gate.",
     d1l3 = "Domain 1, third work — The Assayer's Scales. Sealed at the gate.",
     d1boss = "Domain 1, the boss — The Hollow Guest has fallen. The Guest Ledger is kept.",
+    d2l1 = "Domain 2, first work — The One House. Sealed at the gate.",
+    d2l2 = "Domain 2, second work — The Missing Plank. Sealed at the gate.",
+    d2l3 = "Domain 2, third work — Three Walks. Sealed at the gate.",
+    d2boss = "Domain 2, the boss — The Borderless Inn has fallen. The Innkeeper's Keys are kept.",
     closing = "The chronicle's next pages are blank — honestly. The road continues beyond this slice of the kingdom.",
 }
 
@@ -199,6 +260,18 @@ Content.completion = {
         "\"You receive what the world hands you, and you check",
         "it at the door. That is the first lamp of the course.",
         "The others are lit from it.\"",
+    },
+    to_title = "Return to the Title",
+}
+
+Content.completion_d2 = {
+    title = "DOMAIN 2 — SEALED",
+    lines = {
+        "The Registrar sets the Innkeeper's Keys on the roll-",
+        "room desk, beside the first roll you kept.",
+        "",
+        "\"A register with holes in it cannot count itself. So",
+        "the count is yours to keep — and now you keep it.\"",
     },
     to_title = "Return to the Title",
 }
