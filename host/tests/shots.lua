@@ -91,6 +91,11 @@ function Shots.run(factory)
     app:event({ type = "key", key = "escape" })
     click(530, 543) -- the codex
     beat("16-codex")
+    click(640, 602) -- back to the hall
+    click(1098, 543) -- the guest book, kept by the player's own ledger
+    beat("17-guestbook")
+    click(936, 493) -- the absent name, received at the door
+    beat("18-guestbook-absence")
     return true
 end
 

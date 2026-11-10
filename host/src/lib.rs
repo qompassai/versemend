@@ -10,7 +10,7 @@
 //!
 //! * the GUI platform (Bevy UI nodes + Bevy audio) for play,
 //! * an in-memory platform factory for `--selftest`, which runs the
-//!   slice's own 82-check proof script (full playthrough included)
+//!   slice's own 91-check proof script (full playthrough included)
 //!   inside this binary's Lua state — its transcript must equal the
 //!   C host's byte for byte, and the four gate records must reproduce
 //!   the slice's checksums exactly,
@@ -1195,7 +1195,7 @@ mod tests {
         assert_eq!(sum, "d447229a", "boss checksum");
     }
 
-    /// The full 82-check harness, in-process: zero failures and the
+    /// The full 91-check harness, in-process: zero failures and the
     /// four unit checksums present in the transcript.
     #[test]
     fn selftest_transcript_is_clean() {
@@ -1213,7 +1213,7 @@ mod tests {
             .lines()
             .filter(|l| l.starts_with("check ") && l.ends_with(" FAIL"))
             .count();
-        assert_eq!(passes, 82, "expected 82 check PASS lines, got {passes}");
+        assert_eq!(passes, 91, "expected 91 check PASS lines, got {passes}");
         assert_eq!(fails, 0, "expected no check FAIL lines, got {fails}");
     }
 }

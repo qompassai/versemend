@@ -118,6 +118,10 @@ function Selftest.run(platform_factory)
         local corrupt = bytes1:sub(1, 40) .. "X" .. bytes1:sub(42)
         local bad = Save.parse(corrupt)
         check("save corruption refused", bad == nil)
+        local future = Save.fresh()
+        future.version = 2
+        check("save version refused",
+            Save.parse(Save.serialize(future)) == nil)
         emit("unit save checksum " .. Gate.checksum(bytes1))
     end
 
@@ -166,6 +170,13 @@ function Selftest.run(platform_factory)
     check("arrival reached", app.screen == "arrival")
     for _ = 1, 4 do click(1080, 717) end -- the Keeper's four pages
     check("hub reached", app.screen == "hub")
+
+    -- The guest book before the seal: present, and honestly closed.
+    click(1098, 543) -- The Guest Book
+    check("guestbook closed before the seal",
+        app.screen == "guestbook" and app.guest_book.state == "closed")
+    click(640, 602) -- back to the hall
+    check("hub after guestbook", app.screen == "hub")
 
     local function play_level(level, board_y, solution, demo_cards)
         click(700, board_y) -- the commission board
@@ -237,6 +248,38 @@ function Selftest.run(platform_factory)
     check("chronicle reached", app.screen == "chronicle")
     click(640, 602) -- back to the hall
     check("hub after boss", app.screen == "hub")
+
+    -- The leaf works in the world: the guest book is kept by the
+    -- player's own sealed ledger program.
+    click(1098, 543) -- The Guest Book
+    check("guestbook open after the seal",
+        app.screen == "guestbook" and app.guest_book.state == "open")
+    click(360, 493) -- Ada
+    check("guestbook finds Ada",
+        app.guest_book.result ~= nil and app.guest_book.result.found
+            and app.guest_book.result.attrs.seat == 4)
+    click(744, 493) -- Cy
+    check("guestbook keeps a chosen false",
+        app.guest_book.result ~= nil and app.guest_book.result.found
+            and app.guest_book.result.attrs.lamp == false)
+    click(936, 493) -- The Hollow Guest — the absent name
+    check("guestbook receives absence",
+        app.guest_book.result ~= nil
+            and not app.guest_book.result.found
+            and type(app.guest_book.result.err) == "string")
+    click(640, 602) -- back to the hall
+    check("hub after kept book", app.screen == "hub")
+
+    -- A later hand overwrites the sealed draft: the book refuses
+    -- honestly, and nothing crashes.
+    app.state.drafts["d1boss-act2"] = "this is not lua at all (("
+    app:persist()
+    click(1098, 543)
+    check("guestbook broken draft refused",
+        app.screen == "guestbook" and app.guest_book.state == "broken")
+    click(640, 602)
+    app.state.drafts["d1boss-act2"] = F.boss_act2.solution
+    app:persist()
 
     -- The chronicle survives a restart, in the same single file.
     local saved = platform.read_save()

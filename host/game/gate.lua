@@ -48,17 +48,10 @@ local function normalize(msg)
     return s
 end
 
--- Runs one act (one source against one suite) and appends its lines.
-local function run_act(act, source, emit, state)
-    local count = 0
-    local function hook()
-        count = count + HOOK_EVERY
-        if count > STEP_MAX then
-            state.budget_blown = true
-            error(BUDGET_ERR, 0)
-        end
-    end
-
+-- The whitelist environment, shared by the gate and the field:
+-- the same names, the same copies, the same budget hook in every
+-- thread the program creates.
+local function make_env(hook)
     local env = {}
     for _, k in ipairs(BASE_NAMES) do env[k] = _G[k] end
     for _, k in ipairs(LIB_NAMES) do
@@ -82,6 +75,21 @@ local function run_act(act, source, emit, state)
         end)
     end
     env.coroutine = colib
+    return env
+end
+
+-- Runs one act (one source against one suite) and appends its lines.
+local function run_act(act, source, emit, state)
+    local count = 0
+    local function hook()
+        count = count + HOOK_EVERY
+        if count > STEP_MAX then
+            state.budget_blown = true
+            error(BUDGET_ERR, 0)
+        end
+    end
+
+    local env = make_env(hook)
 
     local before = {}
     for _, k in ipairs(sorted_keys(env)) do before[k] = true end
@@ -140,6 +148,45 @@ local function run_act(act, source, emit, state)
     return act_pass
 end
 
+-- Loads one act's program into a fresh whitelist environment,
+-- under the same instruction budget as the gate, and returns the
+-- environment. This is the field route: a program proved at the
+-- gate goes on working in the world, in the same confinement.
+-- Returns nil and the reason when the inscription does not run
+-- or does not proclaim what the act's contract names.
+local function load_program(act, source)
+    local count = 0
+    local blown = false
+    local function hook()
+        count = count + HOOK_EVERY
+        if count > STEP_MAX then
+            blown = true
+            error(BUDGET_ERR, 0)
+        end
+    end
+    local env = make_env(hook)
+    local chunk, cerr = load(source, "player", "t", env)
+    if not chunk then
+        return nil, normalize(cerr)
+    end
+    count = 0
+    debug.sethook(hook, "", HOOK_EVERY)
+    local ok, lerr = pcall(chunk)
+    debug.sethook()
+    if not ok then
+        if blown or lerr == BUDGET_ERR then
+            return nil, "the work did not end"
+        end
+        return nil, normalize(lerr)
+    end
+    for _, name in ipairs(act.provides) do
+        if env[name] == nil then
+            return nil, name .. " is not proclaimed"
+        end
+    end
+    return env
+end
+
 local function run(level, source)
     local lines = {}
     local function emit(s) lines[#lines + 1] = s end
@@ -166,5 +213,10 @@ local function run(level, source)
     return table.concat(lines, "\n") .. "\n", passed
 end
 
-local M = { run = run, checksum = fnv1a, STEP_MAX = STEP_MAX }
+local M = {
+    run = run,
+    load_program = load_program,
+    checksum = fnv1a,
+    STEP_MAX = STEP_MAX,
+}
 return M

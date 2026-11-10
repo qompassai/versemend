@@ -187,7 +187,8 @@ function App:on_key(key)
         elseif self.screen == "completion" then self:go("title")
         end
     elseif key == "escape" then
-        if self.screen == "codex" or self.screen == "chronicle" then
+        if self.screen == "codex" or self.screen == "chronicle"
+            or self.screen == "guestbook" then
             self:go("hub")
         elseif self.screen == "gate" then
             self:go("hub")
@@ -353,6 +354,8 @@ function App:render_hub()
     self:button(bx + 28, 520, 260, 46, "hub_codex", Content.hub.codex_button)
     self:button(bx + 312, 520, 260, 46, "hub_chronicle",
         Content.hub.chronicle_button)
+    self:button(bx + 596, 520, 260, 46, "hub_guestbook",
+        Content.hub.guest_book_button)
     -- The standing-gates board, at the door.
     self:plate(36, 640, 1208, 120)
     self:text_block(60, 664, {
@@ -778,6 +781,106 @@ function App:backlash_to_editor()
     self:open_editor(self.gate_view.level)
 end
 
+-- ---------- the guest book: the first leaf, working ----------
+
+-- The hall's residents, as the kept book records them. Cy's lamp is
+-- dark by choice: false, kept exactly as chosen — the book shows the
+-- Domain 1 lesson every time it is opened.
+local GUEST_BOOK_NAMES = { "Ada", "Wren", "Cy", "The Hollow Guest" }
+local GUEST_BOOK_SEED = {
+    { name = "Ada", attrs = { seat = 4, lamp = true } },
+    { name = "Wren", attrs = { seat = 7, lamp = true } },
+    { name = "Cy", attrs = { seat = 2, lamp = false } },
+}
+
+function App:open_guest_book()
+    local gb = { state = "closed", result = nil }
+    if self.state.boss_done then
+        local act = Boss.acts[2]
+        local source = self.state.drafts[act.id]
+        local env = source and Gate.load_program(act, source)
+        if env then
+            local ok, registry = pcall(function()
+                local reg = env.Ledger.new()
+                for _, seed in ipairs(GUEST_BOOK_SEED) do
+                    reg:register(seed.name, seed.attrs)
+                end
+                return reg
+            end)
+            if ok and type(registry) == "table" then
+                gb.state = "open"
+                gb.registry = registry
+            else
+                gb.state = "broken"
+            end
+        else
+            gb.state = "broken"
+        end
+    end
+    self.guest_book = gb
+    self:log("guestbook " .. gb.state)
+    self:go("guestbook")
+end
+
+function App:guest_book_lookup(name)
+    local gb = self.guest_book
+    local ok, attrs, err = pcall(gb.registry.lookup, gb.registry, name)
+    if ok and attrs ~= nil then
+        gb.result = { found = true, name = name, attrs = attrs }
+        self:log("guestbook lookup found")
+    else
+        gb.result = {
+            found = false, name = name,
+            err = (ok and err) or "the ledger could not answer",
+        }
+        self:log("guestbook lookup absent")
+    end
+end
+
+function App:render_guest_book()
+    local gb = self.guest_book
+    self.p.draw_image("town", 0, 0, W, H, 255)
+    self.p.draw_rect(0, 0, W, H, "ink", 150)
+    self:plate(240, 90, 800, 560)
+    self.p.draw_text(276, 120, Content.guest_book.title,
+        "display", "ink_blue")
+    if gb.state == "closed" then
+        self:text_block(276, 176, Content.guest_book.closed_lines,
+            "body", "ink", 730)
+    elseif gb.state == "broken" then
+        self:text_block(276, 176, Content.guest_book.broken_lines,
+            "body", "ink", 730)
+    else
+        local y = self:text_block(276, 176,
+            Content.guest_book.open_intro, "body", "ink", 730)
+        if gb.result then
+            local r = gb.result
+            if r.found then
+                local lines = {
+                    r.name .. " " .. Content.guest_book.found_seat
+                        :format(r.attrs.seat or 0),
+                    r.attrs.lamp and Content.guest_book.lamp_lit
+                        or Content.guest_book.lamp_dark,
+                }
+                self:text_block(276, y + 24, lines,
+                    "body_bold", "ink_blue", 730)
+            else
+                self:text_block(276, y + 24, {
+                    r.name .. " — " .. Content.guest_book.absent .. ".",
+                    "\"" .. tostring(r.err) .. "\"",
+                    Content.guest_book.absent_note,
+                }, "body_bold", "ink_blue", 730)
+            end
+        end
+        for i, name in ipairs(GUEST_BOOK_NAMES) do
+            self:button(272 + (i - 1) * 192, 470, 176, 46,
+                "gb_name_" .. i, name, "small")
+        end
+    end
+    self:button(520, 580, 240, 44, "page_back",
+        Content.guest_book.back, "body")
+end
+
 -- ---------- codex, chronicle, completion ----------
 
 function App:render_codex()
@@ -787,6 +890,8 @@ function App:render_codex()
     if self.state.boss_done then
         self.p.draw_text(276, 120, Content.codex_d1.title,
             "display", "ink_blue")
+        self.p.draw_text(276, 152, Content.codex_d1.spread,
+            "small", "ink")
         self.p.draw_text(276, 176, Content.codex_d1.entry_title,
             "body_bold", "ink")
         local y = self:text_block(276, 216, Content.codex_d1.lines,
@@ -796,6 +901,8 @@ function App:render_codex()
     else
         self.p.draw_text(276, 120, Content.codex_empty.title,
             "display", "ink_blue")
+        self.p.draw_text(276, 152, Content.codex_empty.spread,
+            "small", "ink")
         self:text_block(276, 176, Content.codex_empty.lines,
             "body", "ink", 730)
     end
@@ -872,6 +979,13 @@ function App:on_button(id)
         end
     elseif id == "hub_codex" then self:go("codex")
     elseif id == "hub_chronicle" then self:go("chronicle")
+    elseif id == "hub_guestbook" then self:open_guest_book()
+    elseif id:sub(1, 8) == "gb_name_" then
+        local name = GUEST_BOOK_NAMES[tonumber(id:sub(9))]
+        if name and self.guest_book
+            and self.guest_book.state == "open" then
+            self:guest_book_lookup(name)
+        end
     elseif id == "demo_next" then
         self:demo_advance()
     elseif id == "ed_run" then self:run_gate()
@@ -925,6 +1039,7 @@ function App:render()
     elseif s == "editor" then self:render_editor()
     elseif s == "gate" then self:render_gate()
     elseif s == "backlash" then self:render_backlash()
+    elseif s == "guestbook" then self:render_guest_book()
     elseif s == "codex" then self:render_codex()
     elseif s == "chronicle" then self:render_chronicle()
     elseif s == "completion" then self:render_completion()

@@ -82,6 +82,39 @@ Content.hub = {
     },
     codex_button = "The Codex",
     chronicle_button = "The Chronicle",
+    guest_book_button = "The Guest Book",
+}
+
+Content.guest_book = {
+    title = "The Guest Book",
+    closed_lines = {
+        "The hall's guest book lies open, and no entry in it",
+        "can be trusted: the attendant serves from memory,",
+        "and fails on any name the old ledger does not hold.",
+        "",
+        "When the Guest Ledger is kept — the Hollow Guest",
+        "faced, the technique sealed — this book will be kept",
+        "by your own ledger, and an absent name will be",
+        "received here as calmly as it is at the gate.",
+    },
+    open_intro = {
+        "The book is kept now by your own Guest Ledger —",
+        "the program you proved at the gate, working at",
+        "the door. Ask after a guest:",
+    },
+    broken_lines = {
+        "The kept ledger does not open. The inscription in",
+        "the chronicle no longer runs — a later hand has",
+        "overwritten the sealed draft. Seal the Hollow",
+        "Guest again, and the book will keep itself",
+        "once more.",
+    },
+    found_seat = "keeps seat %d.",
+    lamp_lit = "Their lamp is lit.",
+    lamp_dark = "Their lamp is dark — dark by choice, kept exactly as chosen.",
+    absent = "the empty place",
+    absent_note = "No crash. No blame. The absence was received.",
+    back = "Return to the Hall",
 }
 
 Content.demo_intro = "Watch the mechanism work once, in the world."
@@ -124,6 +157,7 @@ Content.seal = {
 
 Content.codex_empty = {
     title = "The Codex",
+    spread = "The spread: fourteen leaves, every one blank — honestly.",
     lines = {
         "Your codex is a book of blank pages, honestly kept.",
         "A technique is entered here only when its trial has",
@@ -134,6 +168,7 @@ Content.codex_empty = {
 
 Content.codex_d1 = {
     title = "Domain 1 — the technique is yours",
+    spread = "The spread: leaf I is filled. Thirteen leaves wait, blank.",
     entry_title = "Absence is a value; receive it",
     lines = {
         "A function that can fail to find returns the documented",
